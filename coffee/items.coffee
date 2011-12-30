@@ -8,18 +8,28 @@ ITEMS =
 			beforeTurn: ->#non-standard use of @uses
 				@uses = game.player.energy
 				@maxUses = game.player.maxEnergy
+				true
+			rendered: ->
 				if game.player.energy < 3
-
+					@get$().addClass 'targetable'
+				true
 		color: 'green'
+	well:
+		label: "Well"
+		use: -> null
 itemItter = 0
-class Item
-	constructor: (template)->
+class window.Item
+	constructor: (group, name)->
 		@id = itemItter
 		itemItter++
+		if not name
+			name = group
+			group = ITEMS
+		template = group[name]
 		for k,v of template
 			this[k] = v
 		@label = name if not @label
-
+		@name = name
 		if @events
 			for ev,h of @events
 				$d.on ev, h.bind this
@@ -36,8 +46,7 @@ class Item
 			<%}%>
 		</div>
 	"""
-window.Item = (name)->
-	new Item ITEMS[name]
+	get$: -> $ '#item_' + @id
  
 $d.on 'click', '.item', ->
 	game.items[$(this).data 'itemid'].use()
@@ -89,7 +98,7 @@ FOODS =
 class window.Food extends Item
 	status: 'fresh'
 	constructor: (name)->
-		super FOOD[name]
+		super FOOD, name
 		this
 
 	onDayStart: ->
@@ -139,10 +148,10 @@ TOOLS =
 					game.endTurn()
 		events: 
 			activate: -> @highlightTargetable()
-			gameRendered: -> @highlightTargetable()
+			rendered: -> @highlightTargetable()
 		highlightTargetable: ->
 			if @active
-				$('.well').toggleClass 'targetable', @uses < @maxUses
+				$('.well').toggleClass 'targetable', @uses is 0
 				$('.crop.unwatered').toggleClass 'targetable', @uses
 				true
 		uses: 0
@@ -154,7 +163,7 @@ TOOLS =
 class window.Tool extends Item
 	active: false
 	constructor: (name)->
-		super TOOLS[name]
+		super TOOLS,name
 	activate: ->
 		return if @active
 		@active = true

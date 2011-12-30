@@ -143,7 +143,7 @@ game =
 		for i in [0...@items.length]
 			html += @items[i].render()
 		$toolbar.html html
-		$d.trigger 'gameRendered'
+		$d.trigger 'rendered'
 	endTurn: ->
 		$d.trigger 'endTurn'
 		if @player.energy < 0

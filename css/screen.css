@@ -672,33 +672,35 @@ p:last-child {
   width: 60px;
   height: 60px;
   cursor: pointer;
+  color: #aaa;
 }
 
-/* line 82, ../sass/screen.scss */
+/* line 83, ../sass/screen.scss */
 .targetable {
   -webkit-box-shadow: 0 0 10px 4px #ffee99;
   box-shadow: 0 0 10px 4px #ffee99;
   cursor: pointer;
 }
 
-/* line 86, ../sass/screen.scss */
+/* line 87, ../sass/screen.scss */
 .active {
   cursor: default;
   -webkit-box-shadow: 0 0 10px 2px #4d4d4d;
   box-shadow: 0 0 10px 2px #4d4d4d;
+  color: #fff;
 }
 
-/* line 91, ../sass/screen.scss */
+/* line 93, ../sass/screen.scss */
 .critical {
   color: #f20d0d;
 }
 
-/* line 94, ../sass/screen.scss */
+/* line 96, ../sass/screen.scss */
 .warning {
   color: #b65e07;
 }
 
-/* line 97, ../sass/screen.scss */
+/* line 99, ../sass/screen.scss */
 .meter {
   display: block;
   margin: 0 auto;
@@ -709,7 +711,7 @@ p:last-child {
   border-radius: 5px;
   overflow: hidden;
 }
-/* line 106, ../sass/screen.scss */
+/* line 108, ../sass/screen.scss */
 .meter em {
   z-index: 1;
   display: block;
@@ -723,11 +725,11 @@ p:last-child {
   -webkit-transition: opacity 0.15s linear;
   transition: opacity 0.15s linear;
 }
-/* line 118, ../sass/screen.scss */
+/* line 120, ../sass/screen.scss */
 .meter:hover em {
   opacity: 1;
 }
-/* line 121, ../sass/screen.scss */
+/* line 123, ../sass/screen.scss */
 .meter span {
   position: absolute;
   user-select: none;

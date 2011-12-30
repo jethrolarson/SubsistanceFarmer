@@ -1,5 +1,5 @@
 (function() {
-  var FOODS, ITEMS, Item, TOOLS, itemItter;
+  var FOODS, ITEMS, TOOLS, itemItter;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
   ITEMS = {
@@ -12,26 +12,43 @@
       events: {
         beforeTurn: function() {
           this.uses = game.player.energy;
-          return this.maxUses = game.player.maxEnergy;
+          this.maxUses = game.player.maxEnergy;
+          return true;
+        },
+        rendered: function() {
+          if (game.player.energy < 3) this.get$().addClass('targetable');
+          return true;
         }
       },
       color: 'green'
+    },
+    well: {
+      label: "Well",
+      use: function() {
+        return null;
+      }
     }
   };
 
   itemItter = 0;
 
-  Item = (function() {
+  window.Item = (function() {
 
-    function Item(template) {
-      var ev, h, k, v, _ref;
+    function Item(group, name) {
+      var ev, h, k, template, v, _ref;
       this.id = itemItter;
       itemItter++;
+      if (!name) {
+        name = group;
+        group = ITEMS;
+      }
+      template = group[name];
       for (k in template) {
         v = template[k];
         this[k] = v;
       }
       if (!this.label) this.label = name;
+      this.name = name;
       if (this.events) {
         _ref = this.events;
         for (ev in _ref) {
@@ -51,15 +68,15 @@
       return this.template(this);
     };
 
-    Item.prototype.template = _.template("<div class=\"item <%#name%>\" data-itemid=\"<%=id%>\">\n	<div><%#label%></div>\n	<%#description%>\n	<%if(this.maxUses){%>\n		<%=game.meterTemplate({width:60, height: 5, bg: color, value: uses / maxUses})%>\n	<%}%>\n</div>");
+    Item.prototype.template = _.template("<div id=\"item_<%=id%>\" class=\"item <%#name%>\" data-itemid=\"<%=id%>\">\n	<div><%#label%></div>\n	<%#description%>\n	<%if(this.maxUses){%>\n		<%=game.meterTemplate({width:60, height: 5, bg: color, value: uses / maxUses})%>\n	<%}%>\n</div>");
+
+    Item.prototype.get$ = function() {
+      return $('#item_' + this.id);
+    };
 
     return Item;
 
   })();
-
-  window.Item = function(name) {
-    return new Item(ITEMS[name]);
-  };
 
   $d.on('click', '.item', function() {
     return game.items[$(this).data('itemid')].use();
@@ -121,7 +138,7 @@
     Food.prototype.status = 'fresh';
 
     function Food(name) {
-      Food.__super__.constructor.call(this, FOOD[name]);
+      Food.__super__.constructor.call(this, FOOD, name);
       this;
     }
 
@@ -183,13 +200,13 @@
         activate: function() {
           return this.highlightTargetable();
         },
-        gameRendered: function() {
+        rendered: function() {
           return this.highlightTargetable();
         }
       },
       highlightTargetable: function() {
         if (this.active) {
-          $('.well').toggleClass('targetable', this.uses < this.maxUses);
+          $('.well').toggleClass('targetable', this.uses === 0);
           $('.crop.unwatered').toggleClass('targetable', this.uses);
           return true;
         }
@@ -211,7 +228,7 @@
     Tool.prototype.active = false;
 
     function Tool(name) {
-      Tool.__super__.constructor.call(this, TOOLS[name]);
+      Tool.__super__.constructor.call(this, TOOLS, name);
     }
 
     Tool.prototype.activate = function() {

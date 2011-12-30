@@ -4,6 +4,7 @@
       this.message("Society has collapsed and millions have died. I have fled to the hills and am trying to scrape out an existance as a subsistance farmer. Maybe through hard work and a little luck I'll survive the winter...");
       this.items.push(new Tool('wateringCan'));
       this.items.push(new Item('bed'));
+      this.items.push(new Item('well'));
       return true;
     },
     tired: function() {

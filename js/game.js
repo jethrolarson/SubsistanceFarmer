@@ -126,7 +126,7 @@
         html += this.items[i].render();
       }
       $toolbar.html(html);
-      return $d.trigger('gameRendered');
+      return $d.trigger('rendered');
     },
     endTurn: function() {
       var dmg;

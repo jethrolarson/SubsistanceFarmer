@@ -64,7 +64,6 @@
       maxAge: 20,
       weather: 4,
       yieldAt: 15,
-      maxYield: 18,
       name: "Unnamed crop"
     };
 
@@ -98,8 +97,7 @@
       */
       this.prop.age += 1;
       if (this.prop.age >= this.attr.yieldAt) {
-        this.yield += Math.round((this.prop.happiness - 5) / 2);
-        this.yield = this.yield.constrain(0, this.attr.maxYield);
+        this.prop.yield += Math.round((this.prop.happiness - 5) / 2);
       }
       return this.prop.watered = false;
     };
@@ -120,7 +118,7 @@
       return this.attr[k];
     };
 
-    Crop.prototype.template = _.template("<div id=\"crop_<%=id%>\" class=\"crop happiness_<%=prop.happiness%> <%if(!prop.watered){%>unwatered<%}%>\" data-plotid=\"<%=id%>\">\n	<div><b><%=name%></b></div>\n	<%=game.meterTemplate({width:80, height: 5, value: prop.age / getAttr(\"maxAge\")})%>\n\n	<div>Growth: <%=prop.growth%></div>\n	<%=game.meterTemplate({width:80, height: 5, bg: 'yellow', value: prop.happiness / MAX_HAPPINESS})%>\n	<%if(prop.yield){%><%=yield%><%}%>\n	<%if(!prop.watered){%><div>thirsty</div><%}%>\n</div>");
+    Crop.prototype.template = _.template("<div id=\"crop_<%=id%>\" class=\"crop happiness_<%=prop.happiness%> <%if(!prop.watered){%>unwatered<%}%>\" data-plotid=\"<%=id%>\">\n	<div><b><%=name%></b></div>\n	<%=game.meterTemplate({width:80, height: 5, value: prop.age / getAttr(\"maxAge\")})%>\n	<div>Growth: <%=prop.growth%></div>\n	<%=game.meterTemplate({width:80, height: 5, bg: 'yellow', value: prop.happiness / MAX_HAPPINESS})%>\n	<%if(prop.yield){%>Yield: <%=prop.yield%><%}%>\n	<%if(!prop.watered){%><div>thirsty</div><%}%>\n</div>");
 
     return Crop;
 

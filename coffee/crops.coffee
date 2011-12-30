@@ -34,7 +34,6 @@ class Crop extends Plot
 		maxAge: 20
 		weather: 4
 		yieldAt: 15
-		maxYield: 18
 		name: "Unnamed crop"
 	MAX_HAPPINESS: 9
 	MAX_GROWTH: 9
@@ -60,8 +59,7 @@ class Crop extends Plot
 		#progress
 		@prop.age +=1
 		if @prop.age >= @attr.yieldAt
-			@yield += Math.round (@prop.happiness - 5) / 2
-			@yield = @yield.constrain 0, @attr.maxYield
+			@prop.yield += Math.round (@prop.happiness - 5) / 2
 		@prop.watered = false
 
 	water: ()->
@@ -80,10 +78,9 @@ class Crop extends Plot
 		<div id="crop_<%=id%>" class="crop happiness_<%=prop.happiness%> <%if(!prop.watered){%>unwatered<%}%>" data-plotid="<%=id%>">
 			<div><b><%=name%></b></div>
 			<%=game.meterTemplate({width:80, height: 5, value: prop.age / getAttr("maxAge")})%>
-
 			<div>Growth: <%=prop.growth%></div>
 			<%=game.meterTemplate({width:80, height: 5, bg: 'yellow', value: prop.happiness / MAX_HAPPINESS})%>
-			<%if(prop.yield){%><%=yield%><%}%>
+			<%if(prop.yield){%>Yield: <%=prop.yield%><%}%>
 			<%if(!prop.watered){%><div>thirsty</div><%}%>
 		</div>
 	"""
