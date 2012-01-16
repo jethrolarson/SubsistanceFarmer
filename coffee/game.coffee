@@ -92,8 +92,7 @@ class models.Game extends Backbone.Model
 		else
 			@player.set calories: @player.get 'maxCalories'
 		
-		@field.forEach (plot)->
-			plot.onDayStart(that)
+		$d.trigger 'dayStart'
 		
 		@beforeTurn()
 

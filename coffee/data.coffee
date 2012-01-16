@@ -103,8 +103,10 @@ window.TOOLS =
 	shovel:
 		label: 'Shovel'
 		actions:
-			'.plot': (e)->
-				true
+			'.expand': (e)->
+				if player.burnCalories(3)
+					$(e.target).trigger 'expand'
+					newGame.endTurn()
 	zucciniSeeds:
 		label: 'Zuccini Seeds'
 		uses: 0

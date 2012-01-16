@@ -218,8 +218,8 @@
       return $(this.el).attr({
         id: this.cid
       }).on({
-        click: this.expand
-      }, '.expand');
+        expand: this.expand
+      });
     };
 
     Field.prototype.appendItem = function(crop) {
@@ -232,10 +232,7 @@
     };
 
     Field.prototype.expand = function() {
-      if (player.burnCalories(3)) {
-        this.collection.add(new models.Plot);
-        return newGame.endTurn();
-      }
+      return this.collection.add(new models.Plot);
     };
 
     Field.prototype.render = function() {

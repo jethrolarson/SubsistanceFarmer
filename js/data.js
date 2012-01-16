@@ -143,8 +143,11 @@
     shovel: {
       label: 'Shovel',
       actions: {
-        '.plot': function(e) {
-          return true;
+        '.expand': function(e) {
+          if (player.burnCalories(3)) {
+            $(e.target).trigger('expand');
+            return newGame.endTurn();
+          }
         }
       }
     },

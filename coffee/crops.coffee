@@ -28,8 +28,7 @@ class models.Crop extends Backbone.Model
 		@happiness = @MAX_HAPPINESS
 		@mods = new Backbone.Collection
 		$d.on onDayStart: @onDayStart
-	onDayStart: ->
-		
+	onDayStart:->
 		@set {happiness: @get('happiness') + (if @get('watered') && Math.abs(@get('weather') - newGame.weather) < 2 then +1 else -1)}, {silent: true}
 		
 		@set {happiness: @get('happiness').constrain 0, @MAX_HAPPINESS}, silent: true
@@ -106,17 +105,14 @@ class views.Field extends Backbone.View
 		@collection.bind 'add', @appendItem
 		@length = 0
 		@render()
-		$(@el).attr(id:@cid).on {
-			click: @expand
-				
-		}, '.expand'
+		$(@el).attr(id:@cid).on
+			expand: @expand
 	appendItem: (crop)->
 		item_view = new views[crop.constructor.name] model: crop
 		item_view.collection = @collection
 		$(@el).append item_view.render().el
 	expand: ->
-		if player.burnCalories 3
-			@collection.add new models.Plot
-			newGame.endTurn()
+		@collection.add new models.Plot
+			
 	render:->
 		$(@el).html '<div class="expand">Expand Garden</div>'

@@ -137,9 +137,7 @@
           calories: this.player.get('maxCalories')
         });
       }
-      this.field.forEach(function(plot) {
-        return plot.onDayStart(that);
-      });
+      $d.trigger('dayStart');
       return this.beforeTurn();
     };
 
