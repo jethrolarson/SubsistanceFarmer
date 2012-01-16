@@ -1,2 +1,2 @@
 #! /bin/sh
-coffee -o js/ -w -c coffee/
+sudo coffee -o js/ -w -c coffee/

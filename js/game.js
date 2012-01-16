@@ -1,5 +1,12 @@
 (function() {
-  var $content, $garden, $player, $toolbar, BREAKFAST, DAY_LENGTH, DINNER, LUNCH, game;
+  var $content, $garden, $player, $toolbar, BREAKFAST, DAY_LENGTH, DINNER, LUNCH, game, gameView;
+  var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+
+  models || (models = {});
+
+  views || (views = {});
+
+  collections || (collections = {});
 
   $player = $('#player');
 
@@ -17,32 +24,195 @@
 
   DINNER = DAY_LENGTH * .8;
 
-  game = {
-    day: 1,
-    time: 0,
-    previousTime: 0,
-    food: 90,
-    player: {
+  models.Player = (function() {
+
+    __extends(Player, Backbone.Model);
+
+    function Player() {
+      Player.__super__.constructor.apply(this, arguments);
+    }
+
+    Player.prototype.defaults = {
       health: 10,
       maxHealth: 10,
-      energy: 6,
-      maxEnergy: 6,
+      calories: 6,
+      maxCalories: 6,
       status: {},
       luck: 5,
       fed: 2,
       maxFed: 5,
       ate: 0
-    },
-    weather: 5,
-    field: [],
-    items: [],
-    inventory: [],
-    fieldsize: 0,
-    ammo: 40,
-    init: function() {
-      this.envokeEvent('intro');
-      return this.beforeDay();
-    },
+    };
+
+    Player.prototype.initialize = function() {
+      console.log('model Player init');
+      return this.inventory = new collections.Inventory();
+    };
+
+    Player.prototype.burnCalories = function(calories) {
+      var msg;
+      msg = this.get('calories') > 0 ? "This requires " + calories + " calories and I only have " + (this.get('calories')) + ". Should I cowboy up?" : msg = "This requires " + calories + " calories and I'm exhausted. Should I cowboy up?";
+      if (this.get('calories') - calories >= 0 || confirm(msg)) {
+        this.set({
+          calories: this.get('calories') - calories
+        });
+        return true;
+      }
+      return false;
+    };
+
+    return Player;
+
+  })();
+
+  views.Player = (function() {
+
+    __extends(Player, Backbone.View);
+
+    function Player() {
+      Player.__super__.constructor.apply(this, arguments);
+    }
+
+    Player.prototype.el = $('#player');
+
+    Player.prototype.initialize = function() {
+      console.log('view Player init');
+      this.inventoryView = new views.Inventory({
+        collection: this.model.inventory
+      });
+      return $('#inventory').html(this.inventoryView.render().el);
+    };
+
+    Player.prototype.render = function() {
+      console.log('render player');
+      return $(this.el).html(this.template(this.model));
+    };
+
+    Player.prototype.template = _.template("<div>\n	Time: <%=window.newGame.get('time')%>\n</div>\n<div id=\"status\">\n	<%for(var i=0,len=this.get('status').length;i<len;i++){%>\n		<span><%=this.get('status')[i]%></span>\n	<%}%>\n</div>\n<%=game.meterTemplate({name: \"health: \"+this.get('health')+\"/\"+this.get('maxHealth'), value: this.get('health') / this.get('maxHealth') , bg: \"hsl(0,70%,40%)\" })%>\n<div class=\"eat action\" data-action=\"eat\" title=\"Eat\">\n	<%=game.meterTemplate({name: \"Fed: \"+this.get('fed')+\"/\"+this.get('maxFed'), value: this.get('fed') / this.get('maxFed'), bg: \"orange\"})%>\n</div>\n");
+
+    return Player;
+
+  })();
+
+  models.Game = (function() {
+
+    __extends(Game, Backbone.Model);
+
+    function Game() {
+      Game.__super__.constructor.apply(this, arguments);
+    }
+
+    Game.prototype.defaults = {
+      day: 1,
+      time: 0,
+      previousTime: 0,
+      food: 90,
+      weather: 5
+    };
+
+    Game.prototype.initialize = function() {
+      console.log('model Game init');
+      this.player = new models.Player;
+      window.player = this.player;
+      this.playerView = new views.Player({
+        model: this.player
+      });
+      return this.field = new Backbone.Collection;
+    };
+
+    Game.prototype.beforeDay = function() {
+      var status, that;
+      $d.trigger('beforeDay');
+      that = this;
+      this.time = 0;
+      status = this.player.get('status');
+      if (status.exhausted) {
+        this.player.set({
+          calories: Math.floor(Math.max(this.player.get('maxCalories') + this.player.get('calories'), 2))
+        });
+        this.message("You're still wiped from yesterday, better take it easy today.", "warning");
+        status.exhausted = false;
+      } else {
+        this.player.set({
+          calories: this.player.get('maxCalories')
+        });
+      }
+      this.field.forEach(function(plot) {
+        return plot.onDayStart(that);
+      });
+      return this.beforeTurn();
+    };
+
+    Game.prototype.beforeTurn = function() {
+      $d.trigger('beforeTurn');
+      console.log('before turn');
+      if ((this.get('previousTime') < BREAKFAST && this.get('time') >= BREAKFAST) || (this.get('previousTime') < LUNCH && this.get('time') >= LUNCH) || (this.get('previousTime') < DINNER && this.get('time') >= DINNER)) {
+        this.fed -= 1;
+      }
+      if (this.player.get('fed') === 0) game.envokeEvent('hungry');
+      if (this.player.get('calories') === 0) game.envokeEvent('tired');
+      this.playerView.render();
+      return $d.trigger('rendered');
+    };
+
+    Game.prototype.endTurn = function() {
+      var dmg;
+      $d.trigger('endTurn');
+      console.log('end turn');
+      if (this.player.get('calories') < 0) {
+        this.player.get('status').exhausted = true;
+        dmg = Math.abs(this.player.get('calories')) ^ 2;
+        this.player.set({
+          health: this.player.get('health') - dmg
+        });
+        this.message("Working while exhausted cost you " + dmg + " health", 'critical');
+      }
+      if (this.player.fed === 0) {
+        this.player.set({
+          calories: this.player.get('calories') - 1
+        });
+      }
+      if (this.player.get('health') <= 0) game.envokeEvent('death');
+      log('turn ended');
+      this.set({
+        previousTime: this.get('time')
+      });
+      this.set({
+        time: this.get('time') + DAY_LENGTH / this.player.get('maxCalories')
+      });
+      return this.beforeTurn();
+    };
+
+    return Game;
+
+  })();
+
+  views.Game = (function() {
+
+    __extends(Game, Backbone.View);
+
+    function Game() {
+      Game.__super__.constructor.apply(this, arguments);
+    }
+
+    Game.prototype.initialize = function() {
+      console.log('view Game init');
+      this.fieldView = new views.Field({
+        collection: this.model.field
+      });
+      this.model.beforeDay();
+      return game.envokeEvent('intro');
+    };
+
+    Game.prototype.render = function() {
+      return this;
+    };
+
+    return Game;
+
+  })();
+
+  game = {
     message: function(msg, className) {
       className || (className = '');
       $content.append("<div class=\"" + className + "\">" + msg + "</div>");
@@ -60,11 +230,11 @@
       }
       return false;
     },
-    useEnergy: function(energy) {
+    burnCalories: function(calories) {
       var msg;
-      msg = this.player.energy > 0 ? "This requires " + energy + " energy and I only have " + this.player.energy + ". Should I cowboy up?" : msg = "This requires " + energy + " energy and I'm exhausted. Should I cowboy up?";
-      if (this.player.energy - energy >= 0 || confirm(msg)) {
-        this.player.energy -= energy;
+      msg = this.player.calories > 0 ? "This requires " + calories + " calories and I only have " + this.player.calories + ". Should I cowboy up?" : msg = "This requires " + calories + " calories and I'm exhausted. Should I cowboy up?";
+      if (this.player.calories - calories >= 0 || confirm(msg)) {
+        this.player.calories -= calories;
         return true;
       }
       return false;
@@ -84,77 +254,22 @@
         return false;
       }
     },
-    meterTemplate: _.template("<% var meterWidth = this.width || 150, meterHeight = this.height || 25;%>\n<div class=\"meter\" style=\"width: <%=meterWidth%>px; height: <%=meterHeight%>px\">\n	<em style=\"line-height: <%=meterHeight%>px; width: <%=meterWidth%>\"><%=name%></em>\n	<span style=\"height: <%=meterHeight%>px; <%if(this.bg){%>background-color: <%=bg%>;<%}%>width: <%=value*meterWidth%>px\"></span>\n</div>"),
-    playerTemplate: _.template("<div>\n	Time: <%=time%>\n</div>\n<div id=\"status\">\n	<%for(var i=0,len=player.status.length;i<len;i++){%>\n		<span><%=player.status[i]%></span>\n	<%}%>\n</div>\n<%=meterTemplate({name: \"health: \"+player.health+\"/\"+player.maxHealth, value: player.health / player.maxHealth , bg: \"hsl(0,70%,40%)\" })%>\n<div class=\"eat action\" data-action=\"eat\" title=\"Eat\">\n	<%=meterTemplate({name: \"Fed: \"+player.fed+\"/\"+player.maxFed, value: player.fed / player.maxFed, bg: \"orange\"})%>\n</div>\n"),
-    renderPlayer: function() {
-      return $player.html(this.playerTemplate(this));
-    },
-    beforeDay: function() {
-      var that;
-      $d.trigger('beforeDay');
-      that = this;
-      this.time = 0;
-      if (this.player.status.exhausted) {
-        this.player.energy = Math.floor(Math.max(this.player.maxEnergy + this.player.energy, 2));
-        this.message("You're still wiped from yesterday, better take it easy today.", "warning");
-        this.player.status.exhausted = false;
-      } else {
-        this.player.energy = this.player.maxEnergy;
-      }
-      this.field.forEach(function(plot) {
-        return plot.onDayStart(that);
-      });
-      return this.beforeTurn();
-    },
-    beforeTurn: function() {
-      var html, i, _ref, _ref2;
-      $d.trigger('beforeTurn');
-      if ((this.previousTime < BREAKFAST && this.time >= BREAKFAST) || (this.previousTime < LUNCH && this.time >= LUNCH) || (this.previousTime < DINNER && this.time >= DINNER)) {
-        this.fed -= 1;
-      }
-      if (this.player.fed === 0) this.envokeEvent('hungry');
-      if (this.player.energy === 0) this.envokeEvent('tired');
-      this.renderPlayer();
-      html = '';
-      for (i = 0, _ref = this.field.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        html += this.field[i].render();
-      }
-      html += '<div class="expand action" data-action="expand">Expand Garden</div>';
-      $garden.html(html);
-      html = '';
-      for (i = 0, _ref2 = this.items.length; 0 <= _ref2 ? i < _ref2 : i > _ref2; 0 <= _ref2 ? i++ : i--) {
-        html += this.items[i].render();
-      }
-      $toolbar.html(html);
-      return $d.trigger('rendered');
-    },
-    endTurn: function() {
-      var dmg;
-      $d.trigger('endTurn');
-      if (this.player.energy < 0) {
-        this.player.status.exhausted = true;
-        dmg = Math.abs(this.player.energy) ^ 2;
-        this.player.health -= dmg;
-        this.message("Working while exhausted cost you " + dmg + " health", 'critical');
-      }
-      if (this.player.fed === 0) this.player.energy -= 1;
-      if (this.player.health <= 0) this.envokeEvent('death');
-      log('turn ended');
-      this.previousTime = this.time;
-      this.time += DAY_LENGTH / this.player.maxEnergy;
-      return this.beforeTurn();
-    }
+    meterTemplate: _.template("<% var meterWidth = this.width || 150, meterHeight = this.height || 25;%>\n<div class=\"meter\" style=\"width: <%=meterWidth%>px; height: <%=meterHeight%>px\">\n	<em style=\"line-height: <%=meterHeight%>px; width: <%=meterWidth%>\"><%=name%></em>\n	<span style=\"height: <%=meterHeight%>px; <%if(this.bg){%>background-color: <%=bg%>;<%}%>width: <%=value*meterWidth%>px\"></span>\n</div>")
   };
 
   window.game = game;
-
-  game.init();
 
   $d.on('click touchstart', '.action', function() {
     var $this, actiondata;
     $this = $(this);
     actiondata = $this.data('actiondata');
     return game.performAction($this.data('action'), actiondata);
+  });
+
+  window.newGame = new models.Game;
+
+  gameView = new views.Game({
+    model: newGame
   });
 
 }).call(this);

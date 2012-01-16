@@ -12,37 +12,13 @@
 		}
 	};
 
-	//Cherry picking from [Underscore.js](http://documentcloud.github.com/underscore/underscore.js)
-	var _ = _ || {};
-	// Returns a function, that, as long as it continues to be invoked, will not
-	// be triggered. The function will be called after it stops being called for
-	// N milliseconds.
-	_.debounce = function(func, wait) {
-		var timeout;
-		return function() {
-			var context = this, args = arguments;
-			var later = function() {
-				timeout = null;
-				func.apply(context, args);
-			};
-			clearTimeout(timeout);
-			timeout = setTimeout(later, wait);
-		};
-	};
-
-	// Escape a string for HTML interpolation.
-	_.escape = function(string) {
-		return (''+string).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;').replace(/\//g,'&#x2F;');
-	};
-
+	//OVERWRITING Underscore.js's templates
 	// By default, Underscore uses ERB-style template delimiters, change the
 	// following template settings to use alternative delimiters.
-	_.templateSettings = {
-		evaluate    : /<%([\s\S]+?)%>/g,
-		interpolate : /<%=([\s\S]+?)%>/g,
-		escape      : /<%-([\s\S]+?)%>/g,
+	_.templateSettings = $.extend(_.templateSettings,{
+		modelProp   : /<%@([\s\S]+?)%>/g,
 		value       : /<%#([\s\S]+?)%>/g // inserts value of a variable on the object or "" if undefined
-	};
+	});
 
 	// JavaScript micro-templating, similar to John Resig's implementation.
 	// Underscore templating handles arbitrary delimiters, preserves whitespace,
@@ -57,6 +33,9 @@
 				.replace(/'/g, "\\'")
 				.replace(c.escape, function(match, code) {
 					return "',_.escape(" + code.replace(/\\'/g, "'") + "),'";
+				})
+				.replace(c.modelProp, function(match, code) {
+					return "',this.get('" + code.replace(/\\'/g, "'") + "'),'";
 				})
 				.replace(c.value, function(match, code) {
 					return "',this." + code.replace(/\\'/g, "'") + "||'','";
@@ -75,8 +54,6 @@
 		var func = new Function('obj', '_', tmpl);
 		return data ? func(data, _) : function(data) { return func(data, _) };
 	};
-
-	window._ = _;
 
 	// usage: log('inside coolFunc', this, arguments);
 	// paulirish.com/2009/log-a-lightweight-wrapper-for-consolelog/

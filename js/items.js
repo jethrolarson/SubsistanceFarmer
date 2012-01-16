@@ -1,139 +1,243 @@
 (function() {
-  var FOODS, ITEMS, TOOLS, itemItter;
+  var bb, itemItter;
   var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
-  ITEMS = {
-    bed: {
-      label: 'Bed',
-      use: function() {
-        game.message("You rest");
-        return game.beforeDay();
-      },
-      events: {
-        beforeTurn: function() {
-          this.uses = game.player.energy;
-          this.maxUses = game.player.maxEnergy;
-          return true;
-        },
-        rendered: function() {
-          if (game.player.energy < 3) this.get$().addClass('targetable');
-          return true;
-        }
-      },
-      color: 'green'
-    },
-    well: {
-      label: "Well",
-      use: function() {
-        return null;
-      }
-    }
-  };
+  bb = Backbone;
+
+  window.models || (window.models = {});
+
+  window.collections || (window.collections = {});
+
+  window.views || (window.views = {});
 
   itemItter = 0;
 
-  window.Item = (function() {
+  models.Item = (function() {
 
-    function Item(group, name) {
-      var ev, h, k, template, v, _ref;
-      this.id = itemItter;
-      itemItter++;
-      if (!name) {
-        name = group;
-        group = ITEMS;
-      }
-      template = group[name];
-      for (k in template) {
-        v = template[k];
-        this[k] = v;
-      }
-      if (!this.label) this.label = name;
-      this.name = name;
-      if (this.events) {
-        _ref = this.events;
-        for (ev in _ref) {
-          h = _ref[ev];
-          $d.on(ev, h.bind(this));
-        }
-      }
+    __extends(Item, bb.Model);
+
+    function Item() {
+      Item.__super__.constructor.apply(this, arguments);
     }
 
-    Item.prototype.age = 0;
-
-    Item.prototype.color = 'blue';
-
-    Item.prototype.maxAge = 0;
-
-    Item.prototype.render = function() {
-      return this.template(this);
+    Item.prototype.defaults = {
+      id: 0,
+      name: '',
+      label: '',
+      description: '',
+      maxUses: 0,
+      age: 0,
+      color: 'blue',
+      maxAge: 0
     };
 
-    Item.prototype.template = _.template("<div id=\"item_<%=id%>\" class=\"item <%#name%>\" data-itemid=\"<%=id%>\">\n	<div><%#label%></div>\n	<%#description%>\n	<%if(this.maxUses){%>\n		<%=game.meterTemplate({width:60, height: 5, bg: color, value: uses / maxUses})%>\n	<%}%>\n</div>");
-
-    Item.prototype.get$ = function() {
-      return $('#item_' + this.id);
+    Item.prototype.initialize = function() {
+      var ev, h, _ref, _results;
+      if (this.get('events')) {
+        _ref = this.get('events');
+        _results = [];
+        for (ev in _ref) {
+          h = _ref[ev];
+          _results.push($d.on(ev, h.bind(this)));
+        }
+        return _results;
+      }
     };
 
     return Item;
 
   })();
 
-  $d.on('click', '.item', function() {
-    return game.items[$(this).data('itemid')].use();
-  });
+  models.Tool = (function() {
 
-  FOODS = {
-    zuccini: {
-      maxAge: 14,
-      calories: 25,
-      protien: 1.5,
-      nutrition: 5,
-      description: "I can tell I'm going to get sick of these, but they're healthy."
-    },
-    cabbage: {
-      maxAge: 28,
-      calories: 8,
-      protein: .5,
-      nutrition: 5,
-      description: "Surprisingly healthy for something that tastes like rubber."
-    },
-    tomato: {
-      maxAge: 14,
-      calories: 33,
-      protein: 2,
-      nutrition: 4.9,
-      description: "Tasty, versitile, and good for you too."
-    },
-    potato: {
-      maxAge: 40,
-      calories: 160,
-      protein: 4,
-      nutrition: 4.0,
-      description: "A great food for hard times."
-    },
-    apple: {
-      maxAge: 36,
-      calories: 95,
-      protein: 0,
-      nutrition: 2.7
-    },
-    venison: {
-      maxAge: 7,
-      calories: 130,
-      protein: 24,
-      nutrition: 2.6
-    },
-    chicken: {
-      maxAge: 7,
-      calories: 240,
-      protein: 24,
-      nutrition: 2.0
+    __extends(Tool, models.Item);
+
+    function Tool() {
+      Tool.__super__.constructor.apply(this, arguments);
     }
-  };
+
+    Tool.prototype.defaults = {
+      active: false,
+      targets: ''
+    };
+
+    return Tool;
+
+  })();
+
+  collections.Inventory = (function() {
+
+    __extends(Inventory, bb.Collection);
+
+    function Inventory() {
+      Inventory.__super__.constructor.apply(this, arguments);
+    }
+
+    Inventory.prototype.model = models.Item;
+
+    Inventory.prototype.addItem = function(name) {
+      var o;
+      o = ITEMS[name];
+      o.name = name;
+      return this.add(new models.Item(o));
+    };
+
+    Inventory.prototype.addTool = function(name) {
+      var o;
+      o = TOOLS[name];
+      o.name = name;
+      return this.add(new models.Tool(o));
+    };
+
+    return Inventory;
+
+  })();
+
+  views.Item = (function() {
+
+    __extends(Item, bb.View);
+
+    function Item() {
+      Item.__super__.constructor.apply(this, arguments);
+    }
+
+    Item.prototype.tagName = 'div';
+
+    Item.prototype.initialize = function() {
+      var _this = this;
+      _.bindAll(this);
+      this.model.bind('change:targetable', function() {
+        return $(_this.el).toggleClass('targetable', _this.model.get('targetable'));
+      });
+      $(this.el).attr({
+        id: 'item_' + this.model.cid,
+        'data-itemid': this.model.get('id'),
+        'class': 'item ' + this.model.get('name')
+      });
+      $d.on('beforeTurn', this.render);
+      if (this.model.get('use')) {
+        return $(this.el).on({
+          click: this.model.get('use')
+        });
+      }
+    };
+
+    Item.prototype.render = function() {
+      $(this.el).html(this.template(this.model));
+      return this;
+    };
+
+    Item.prototype.template = _.template("<div><%@label%></div>\n<%@description%>\n<%if(this.get('maxUses')){%>\n	<%=game.meterTemplate({width:60, height: 5, bg: this.get('color'), value: this.get('uses') / this.get('maxUses')})%>\n<%}%>");
+
+    return Item;
+
+  })();
+
+  views.Tool = (function() {
+
+    __extends(Tool, views.Item);
+
+    function Tool() {
+      Tool.__super__.constructor.apply(this, arguments);
+    }
+
+    Tool.prototype.initialize = function() {
+      var _this = this;
+      Tool.__super__.initialize.call(this);
+      $(this.el).addClass('tool');
+      this.model.bind('change:active', this.changeActive);
+      this.model.bind('change:uses', this.render);
+      $(this.el).on({
+        click: function(e) {
+          if (!e.isDefaultPrevented()) {
+            return _this.model.set({
+              active: true
+            });
+          }
+        }
+      });
+      return this;
+    };
+
+    Tool.prototype.changeActive = function() {
+      var key, model, val, _i, _len, _ref, _ref2, _results;
+      if (this.model.get('active')) {
+        _ref = player.inventory.models;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          model = _ref[_i];
+          if (model.cid !== this.model.cid) {
+            model.set({
+              active: false
+            });
+          }
+        }
+        $(this.el).addClass('active');
+        _ref2 = this.model.get('actions');
+        _results = [];
+        for (key in _ref2) {
+          val = _ref2[key];
+          $(key).addClass('targetable');
+          _results.push($d.on('click.' + this.cid, key, val.bind(this.model)));
+        }
+        return _results;
+      } else {
+        for (key in this.model.get('actions')) {
+          $(key).removeClass('targetable');
+        }
+        $(this.el).removeClass('active');
+        return $d.off('click.' + this.cid);
+      }
+    };
+
+    Tool.prototype.render = function() {
+      $(this.el).toggleClass('active', this.model.get('active'));
+      return Tool.__super__.render.call(this);
+    };
+
+    return Tool;
+
+  })();
+
+  views.Inventory = (function() {
+
+    __extends(Inventory, bb.View);
+
+    function Inventory() {
+      Inventory.__super__.constructor.apply(this, arguments);
+    }
+
+    Inventory.prototype.tagName = 'div';
+
+    Inventory.prototype.initialize = function() {
+      _.bindAll(this);
+      this.el.id = this.cid;
+      this.collection.bind('add', this.appendItem);
+      this.collection.addItem('bed');
+      this.collection.addItem('well');
+      this.collection.addTool('wateringCan');
+      this.collection.addTool('shovel');
+      return this.collection.addTool('zucciniSeeds');
+    };
+
+    Inventory.prototype.appendItem = function(item) {
+      var item_view;
+      item_view = new views[item.constructor.name]({
+        model: item
+      });
+      return $(this.el).append(item_view.render().el);
+    };
+
+    Inventory.prototype.render = function() {
+      return this;
+    };
+
+    return Inventory;
+
+  })();
+
+  itemItter = 0;
 
   window.Food = (function() {
-
-    __extends(Food, Item);
 
     Food.prototype.status = 'fresh';
 
@@ -171,108 +275,5 @@
     return Food;
 
   })();
-
-  TOOLS = {
-    wateringCan: {
-      label: "Watering Can",
-      actions: {
-        '.crop': function(e) {
-          var $target, crop;
-          $target = $(e.target).closest('.crop');
-          crop = game.field[$target.data('plotid')];
-          if (this.uses <= 0) {
-            game.message("I'm out of water, I'll need to gather some more", "warning");
-          } else if (crop.water() && game.useEnergy(1)) {
-            this.uses -= 1;
-            game.endTurn();
-            return true;
-          }
-          return false;
-        },
-        '.well': function() {
-          if (game.useEnergy(1)) {
-            this.uses = this.maxUses;
-            return game.endTurn();
-          }
-        }
-      },
-      events: {
-        activate: function() {
-          return this.highlightTargetable();
-        },
-        rendered: function() {
-          return this.highlightTargetable();
-        }
-      },
-      highlightTargetable: function() {
-        if (this.active) {
-          $('.well').toggleClass('targetable', this.uses === 0);
-          $('.crop.unwatered').toggleClass('targetable', this.uses);
-          return true;
-        }
-      },
-      uses: 0,
-      maxUses: 5
-    },
-    shovel: {
-      actions: {
-        '.plot': 'expand'
-      }
-    }
-  };
-
-  window.Tool = (function() {
-
-    __extends(Tool, Item);
-
-    Tool.prototype.active = false;
-
-    function Tool(name) {
-      Tool.__super__.constructor.call(this, TOOLS, name);
-    }
-
-    Tool.prototype.activate = function() {
-      var k, v, _ref;
-      if (this.active) return;
-      this.active = true;
-      _ref = this.actions;
-      for (k in _ref) {
-        v = _ref[k];
-        $d.on('click.' + this.name, k, v.bind(this));
-      }
-      return $d.trigger('activate');
-    };
-
-    Tool.prototype.deactivate = function() {
-      var k, v, _ref;
-      if (!this.active) return;
-      $(this.targets).removeClass('targetable');
-      _ref = this.actions;
-      for (k in _ref) {
-        v = _ref[k];
-        $d.off('click.' + this.name);
-      }
-      return this.active = false;
-    };
-
-    Tool.prototype.template = _.template("<div class=\"tool <%#name%> <%=this.active?'active':''%>\" data-itemid=\"<%=id%>\">\n	<div><%#label%></div>\n	<%#description%>\n	<%if(this.maxUses){%>\n		<%=game.meterTemplate({width:60, height: 5, bg: 'blue', value: uses / maxUses})%>\n	<%}%>\n</div>");
-
-    return Tool;
-
-  })();
-
-  $d.on({
-    click: function() {
-      var $this;
-      $('.tool.active').trigger('deactivate');
-      $this = $(this).addClass('active');
-      return game.items[$this.data('itemid')].activate();
-    },
-    deactivate: function() {
-      var $this;
-      $this = $(this).removeClass('active');
-      return game.items[$this.data('itemid')].deactivate();
-    }
-  }, '.tool');
 
 }).call(this);
