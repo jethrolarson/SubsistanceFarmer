@@ -128,11 +128,12 @@
 
     Plot.prototype.initialize = function() {
       var _this = this;
+      this.$el = $(this.el);
       this.model.bind('remove', function() {
-        return $(_this.el).remove();
+        return _this.$el.remove();
       });
       this.el.id = this.cid;
-      return $(this.el).on({
+      return this.$el.on({
         plant: function(e, plantType) {
           var crop, i, _len, _ref;
           _ref = _this.collection.models;
@@ -149,7 +150,7 @@
     };
 
     Plot.prototype.render = function() {
-      $(this.el).html("<div class=\"plot\" id=\"" + this.cid + "\">Plot</div>");
+      this.$el.html("<div class=\"plot\" id=\"" + this.cid + "\">Plot</div>");
       return this;
     };
 
@@ -169,11 +170,9 @@
 
     Crop.prototype.initialize = function() {
       _.bindAll(this);
-      $(this.el).attr({
+      this.$el.attr({
         id: this.cid,
         'class': 'crop'
-      }).on({
-        water: this.water
       });
       $d.on({
         onDayStart: this.render
@@ -181,9 +180,13 @@
       return this.render();
     };
 
+    Crop.prototype.events = {
+      water: 'water'
+    };
+
     Crop.prototype.render = function() {
-      $(this.el).toggleClass('unwatered', !this.model.get('watered'));
-      $(this.el).html(this.template(this.model));
+      this.$el.toggleClass('unwatered', !this.model.get('watered'));
+      this.$el.html(this.template(this.model));
       return this;
     };
 
@@ -211,15 +214,16 @@
     Field.prototype.el = $('#field');
 
     Field.prototype.initialize = function() {
+      this.$el = $(this.el);
       _.bindAll(this);
       this.collection.bind('add', this.appendItem);
       this.length = 0;
-      this.render();
-      return $(this.el).attr({
-        id: this.cid
-      }).on({
-        expand: this.expand
-      });
+      this.el.id = this.cid;
+      return this.render();
+    };
+
+    Field.prototype.events = {
+      expand: 'expand'
     };
 
     Field.prototype.appendItem = function(crop) {
@@ -228,7 +232,7 @@
         model: crop
       });
       item_view.collection = this.collection;
-      return $(this.el).append(item_view.render().el);
+      return this.$el.append(item_view.render().el);
     };
 
     Field.prototype.expand = function() {
@@ -236,7 +240,7 @@
     };
 
     Field.prototype.render = function() {
-      return $(this.el).html('<div class="expand">Expand Garden</div>');
+      return this.$el.html('<div class="expand">Expand Garden</div>');
     };
 
     return Field;

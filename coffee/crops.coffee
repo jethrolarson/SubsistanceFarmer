@@ -28,6 +28,7 @@ class models.Crop extends Backbone.Model
 		@happiness = @MAX_HAPPINESS
 		@mods = new Backbone.Collection
 		$d.on onDayStart: @onDayStart
+
 	onDayStart:->
 		@set {happiness: @get('happiness') + (if @get('watered') && Math.abs(@get('weather') - newGame.weather) < 2 then +1 else -1)}, {silent: true}
 		
@@ -59,32 +60,34 @@ class models.Crop extends Backbone.Model
 class views.Plot extends Backbone.View
 	tagName: 'div'
 	initialize: ->
+		@$el = $(@el)
 		@model.bind 'remove', =>
-			$(@el).remove()
+			@$el.remove()
 		@el.id = @cid
-		$(@el).on plant: (e,plantType)=>
+		@$el.on plant: (e,plantType)=>
 			for crop,i in @collection.models
 				break if crop.cid = @model.cid
 			@collection.remove @collection.at i
 			@collection.add new models.Crop(CROPS[plantType]), at: i
 	render: ->
-		$(@el).html """<div class="plot" id="#{this.cid}">Plot</div>"""
+		@$el.html """<div class="plot" id="#{this.cid}">Plot</div>"""
 		@
 
 class views.Crop extends Backbone.View
 	tagName: 'div'
 	initialize:->
 		_.bindAll @
-		$(@el).attr(
+		@$el.attr(
 			id: @cid
 			'class': 'crop'
-		).on 
-			water: @water
+		)
 		$d.on onDayStart: @render
 		@render()
+	events:
+		water: 'water'
 	render: ->
-		$(@el).toggleClass 'unwatered', not @model.get 'watered'
-		$(@el).html @template @model
+		@$el.toggleClass 'unwatered', not @model.get 'watered'
+		@$el.html @template @model
 		@
 	water: ->
 		@model.set watered: true
@@ -101,18 +104,20 @@ class views.Crop extends Backbone.View
 class views.Field extends Backbone.View
 	el: $ '#field'
 	initialize: ->
+		@$el = $(@el)
 		_.bindAll @
 		@collection.bind 'add', @appendItem
 		@length = 0
+		@el.id = @cid
 		@render()
-		$(@el).attr(id:@cid).on
-			expand: @expand
+	events:
+		expand: 'expand'
 	appendItem: (crop)->
 		item_view = new views[crop.constructor.name] model: crop
 		item_view.collection = @collection
-		$(@el).append item_view.render().el
+		@$el.append item_view.render().el
 	expand: ->
 		@collection.add new models.Plot
 			
 	render:->
-		$(@el).html '<div class="expand">Expand Garden</div>'
+		@$el.html '<div class="expand">Expand Garden</div>'

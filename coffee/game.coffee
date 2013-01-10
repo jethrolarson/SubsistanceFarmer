@@ -197,7 +197,5 @@ $d.on('click touchstart','.action', ->
 	game.performAction $this.data('action'), actiondata
 )
 
-
-
 window.newGame = new models.Game
-gameView = new views.Game model: newGame
+new views.Game model: newGame
