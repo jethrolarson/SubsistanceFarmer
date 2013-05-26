@@ -1,12 +1,12 @@
-#coffee -o js/ -w -c coffee/
-models ||= {}
-views ||= {}
-collections ||= {}
+#coffee --map -o js/ -w -c coffee/
+window.models = {}
+window.collections = {}
+window.views = {}
 $player =  $ '#player'
 $content = $ '#content'
 $garden =  $ '#garden'
 $toolbar = $ '#toolbar'
-DAY_LENGTH = 12
+DAY_LENGTH = 24
 BREAKFAST = DAY_LENGTH * .3
 LUNCH = DAY_LENGTH * .5
 DINNER = DAY_LENGTH * .8
@@ -19,131 +19,148 @@ class models.Player extends Backbone.Model
 		maxCalories: 6
 		status: {}
 		luck: 5
-		fed: 2
-		maxFed: 5 #4th meal is for quitters
+		fed: 80
+		maxFed: 100 #4th meal is for quitters
 		ate: 0 #0-5
 	initialize: ->
 		console.log 'model Player init'
-		@inventory = new collections.Inventory() 
+		@inventory = new collections.Inventory()
+		@listenTo time, 'change:hours', @onStep
+		@listenTo time, 'dawn', @onDay
+		@on 'change:fed', @onFedChange
+
+		#render player status
+		@view = new views.Player model: this
+		@view.render()
+	onStep: ->
+		@set fed: @get('fed') - 1
+
+	onFedChange: ->
+		if @get('fed') is 0
+			game.envokeEvent 'hungry'
+	
+	onDay: ->
+		status = @get('status')
+		if status.exhausted
+			@set
+				calories: Math.floor Math.max @get('maxCalories') + @get('calories'), 2
+			game.message "You're still wiped from yesterday, better take it easy today.", "warning"
+			status.exhausted = false
+		else
+			@set calories: @get 'maxCalories'
+			game.message "I feel a lot better today"
+			
 	burnCalories: (calories)->
 		msg = if @get('calories') > 0
 			"This requires #{calories} calories and I only have #{@get('calories')}. Should I cowboy up?"
 		else 
 			msg = "This requires #{calories} calories and I'm exhausted. Should I cowboy up?"
 		if @get('calories') - calories >= 0 || confirm msg
-			@set calories: @get('calories') -  calories
+			newCals = @get('calories') - calories
+			@set calories: newCals
+			if newCals is 0
+				game.envokeEvent 'tired'
 			return true
 		return false
+
+	work: (hours=1)->
+		time.addTime(hours)
+
+		if @get('calories') < 0
+			@get('status').exhausted = true
+			dmg = Math.abs(@get('calories')) ^ 2
+			@set health: @get('health') - dmg
+			game.message "Working while exhausted cost you #{dmg} health", 'critical'
+		
+		#working while hungry makes you even more tired
+		if @fed is 0
+			@set calories: @get('calories') - 1
+
+		if @get('health') <= 0
+			game.envokeEvent 'death'
 
 class views.Player extends Backbone.View
 	el: $ '#player'
 	initialize: ->
 		console.log 'view Player init'
-		@inventoryView = new views.Inventory collection: @model.inventory
-		$('#inventory').html @inventoryView.render().el
+		@listenTo time, 'change:hours', @render
+		@model.on 'change', @render.bind this
 	render: ->
 		console.log 'render player'
 		$(@el).html @template @model
 	template: _.template """
 		<div>
-			Time: <%=window.newGame.get('time')%>
+			<%=time.get('hours')%>:00 Day<%=time.get('day')%>
 		</div>
 		<div id="status">
 			<%for(var i=0,len=this.get('status').length;i<len;i++){%>
 				<span><%=this.get('status')[i]%></span>
 			<%}%>
 		</div>
+		<%=game.meterTemplate({name: "calories: "+this.get('calories')+"/"+this.get('maxCalories'), value: this.get('calories') / this.get('maxCalories') , bg: "hsl(90,70%,40%)" })%>
 		<%=game.meterTemplate({name: "health: "+this.get('health')+"/"+this.get('maxHealth'), value: this.get('health') / this.get('maxHealth') , bg: "hsl(0,70%,40%)" })%>
 		<div class="eat action" data-action="eat" title="Eat">
 			<%=game.meterTemplate({name: "Fed: "+this.get('fed')+"/"+this.get('maxFed'), value: this.get('fed') / this.get('maxFed'), bg: "orange"})%>
 		</div>
 		
 	"""
+#FIXME incomplete
+phases =
+	'midnight': 0
+	'dawn':     6
+	'midday':   12
+	'dusk':     18
+	'night':    21
+phaseTimes = _.invert phases
+
+class models.Time extends Backbone.Model
+	
+	defaults:
+		hours: 6
+		previousTime: 0
+		day: 1
+		
+	sleep: ->
+		while @get('hours') != phases.dawn
+			@step()
+	addTime: (h)->
+		while h
+			@step()
+			h -= 1
+		
+	step: ->
+		hours = @get('hours') + 1
+		
+		if hours is DAY_LENGTH
+			@set day: @get('day') + 1
+			hours = 0
+		@set hours: hours
+		if phaseTimes[hours]
+			@trigger phaseTimes[hours]
+
+
+		
+
+
+
 
 class models.Game extends Backbone.Model
 	defaults:
 		#TODO make this deterministic and store to localStorage
-		day: 1
-		time: 0
-		previousTime: 0
 		food: 90
 		weather: 5 #0-10
-	initialize:->
+		
+	start: ->
 		console.log 'model Game init'
+		window.time = new models.Time
 		@player = new models.Player
 		window.player = @player
-		@playerView = new views.Player model: @player
 		@field = new Backbone.Collection
-	
+		new views.Game model: this
+		@listenTo time, phases.dawn, @beforeDay
+		@envokeEvent('intro')
 	# Phase events
 	#==============
-	beforeDay: ->
-		$d.trigger 'beforeDay'
-		that = this
-
-		#Roll for night event
-		@time = 0
-		status = @player.get('status')
-		if status.exhausted
-			@player.set
-				calories: Math.floor Math.max @player.get('maxCalories') + @player.get('calories'), 2
-			@message "You're still wiped from yesterday, better take it easy today.", "warning"
-			status.exhausted = false
-		else
-			@player.set calories: @player.get 'maxCalories'
-		
-		$d.trigger 'dayStart'
-		
-		@beforeTurn()
-
-	beforeTurn: ->
-		$d.trigger 'beforeTurn'
-		console.log 'before turn'
-		if (
-			(@get('previousTime') < BREAKFAST and @get('time') >= BREAKFAST) or
-			(@get('previousTime') < LUNCH and @get('time') >= LUNCH) or
-			(@get('previousTime') < DINNER and @get('time') >= DINNER)
-		)
-			@fed -= 1
-		if @player.get('fed') is 0
-			game.envokeEvent 'hungry'
-		if @player.get('calories') is 0
-			game.envokeEvent 'tired'
-
-		#roll for turn event
-
-		#render player status
-		@playerView.render()
-		$d.trigger 'rendered'
-
-	endTurn: ->
-		$d.trigger 'endTurn'
-		console.log 'end turn'
-		if @player.get('calories') < 0
-			@player.get('status').exhausted = true
-			dmg = Math.abs(@player.get('calories')) ^ 2
-			@player.set health: @player.get('health') - dmg
-			@message "Working while exhausted cost you #{dmg} health", 'critical'
-		if @player.fed is 0
-			@player.set calories: @player.get('calories') - 1
-
-		if @player.get('health') <= 0
-			game.envokeEvent 'death'
-		log 'turn ended'
-		@set previousTime: @get 'time'
-		@set time: @get('time') + DAY_LENGTH / @player.get('maxCalories')
-		@beforeTurn()
-class views.Game extends Backbone.View
-	initialize: ->
-		console.log 'view Game init'
-		@fieldView = new views.Field collection: @model.field
-		@model.beforeDay()
-		game.envokeEvent('intro')
-	render: -> @
-		
-
-
-game = 
 
 	message: (msg, className)->
 		className ||= ''
@@ -168,17 +185,6 @@ game =
 			@player.calories -= calories
 			return true
 		return false
-	performAction: (k,data)->
-		data ||= {}
-		if window.actions[k] 
-			if window.actions[k].call this, data
-				log "Action: #{k} performed"
-				@endTurn()
-				true
-			else false
-		else
-			@message "Action #{k} not defined", 'warning'
-			false
 
 	meterTemplate: _.template """
 		<% var meterWidth = this.width || 150, meterHeight = this.height || 25;%>
@@ -187,15 +193,18 @@ game =
 			<span style="height: <%=meterHeight%>px; <%if(this.bg){%>background-color: <%=bg%>;<%}%>width: <%=value*meterWidth%>px"></span>
 		</div>
 	"""
-	
-window.game = game
 
-# Player event bindings
-$d.on('click touchstart','.action', ->
-	$this = $ this
-	actiondata = $this.data 'actiondata'
-	game.performAction $this.data('action'), actiondata
-)
+class views.Game extends Backbone.View
+	initialize: ->
+		console.log 'view Game init'
+		@fieldView = new views.Field collection: @model.field
+		
+	render: -> @
 
-window.newGame = new models.Game
-new views.Game model: newGame
+
+
+
+$ ->
+	window.game = new models.Game
+	game.start()
+

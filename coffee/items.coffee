@@ -6,7 +6,6 @@ window.views ||= {}
 itemItter = 0
 class models.Item extends bb.Model
 	defaults:
-		id: 0
 		name: ''
 		label: ''
 		description: ''
@@ -15,25 +14,17 @@ class models.Item extends bb.Model
 		color: 'blue'
 		maxAge: 0 # ∞
 	initialize: ->
-		if @get 'events'
-			for ev,h of @get 'events'
-				$d.on ev, h.bind this
+		init = @get 'initialize'
+		if init
+			init.call this
+
 
 class models.Tool extends models.Item
 	defaults:
 		active: false
 		targets: ''
 
-class collections.Inventory extends bb.Collection
-	model: models.Item
-	addItem: (name)->
-		o = ITEMS[name]
-		o.name = name
-		@add new models.Item o
-	addTool: (name)->
-		o = TOOLS[name]
-		o.name = name
-		@add new models.Tool o
+
 #views
 class views.Item extends bb.View
 	tagName: 'div'
@@ -45,7 +36,7 @@ class views.Item extends bb.View
 			id: 'item_'+ @model.cid
 			'data-itemid': @model.get 'id'
 			'class': 'item '+@model.get 'name'
-		$d.on 'beforeTurn', @render
+		@listenTo time, 'change:hours', @render
 		if @model.get 'use'
 			$(@el).on click: @model.get 'use'
 	render: ->
@@ -62,21 +53,24 @@ class views.Item extends bb.View
 class views.Tool extends views.Item
 	initialize:->
 		super()
+		@$el = $ @el
 		$(@el).addClass 'tool'
 		@model.bind 'change:active', @changeActive
 		@model.bind 'change:uses', @render
 		$(@el).on 
 			click: (e)=>
-				@model.set(active:true) if not e.isDefaultPrevented()
+				@model.set(active:true) 
 		@
 	changeActive: ->
 		if @model.get 'active'
+			console.log(@model.get('name') + ' activated')
 			#deactivate every item except this one
 			for model in player.inventory.models
 				model.set(active: false) if model.cid isnt @model.cid
 			$(@el).addClass 'active'
 			for key,val of @model.get 'actions'
 				$(key).addClass 'targetable'
+				#bind item actions to their targeted elements
 				$d.on 'click.' + @cid, key, val.bind @model
 		else
 			for key of @model.get 'actions'
@@ -88,22 +82,45 @@ class views.Tool extends views.Item
 		$(@el).toggleClass 'active', @model.get 'active'
 		super()
 
+class collections.Inventory extends bb.Collection
+	model: models.Item
+	initialize: ->
+		@view = new views.Inventory collection: this
+		@bind 'add', @view.appendItem
+		@addItem 'bed'
+		@addItem 'well'
+		@addTool 'wateringCan'
+		@addTool 'shovel'
+		@addTool 'zucciniSeeds'
+		@view.render()
+		@
+	addItem: (name)->
+		o = ITEMS[name]
+		o.name = name
+		model = new models.Item o
+		@add model
+
+	addTool: (name)->
+		o = TOOLS[name]
+		o.name = name
+		@add new models.Tool o
+
 class views.Inventory extends bb.View
 	tagName: 'div'
 	initialize: ->
+		@$el = $ @el
 		_.bindAll @
 		@el.id = @cid
-		@collection.bind 'add', @appendItem
-		@collection.addItem 'bed'
-		@collection.addItem 'well'
-		@collection.addTool 'wateringCan'
-		@collection.addTool 'shovel'
-		@collection.addTool 'zucciniSeeds'
+		@
+
+		
 	appendItem: (item)->
 		item_view = new views[item.constructor.name] model: item
-		$(@el).append item_view.render().el
+		@$el.append item_view.render().el
+
 	render: ->
-		@
+		$('#inventory').empty().append @el
+		@el
 
 
 itemItter = 0
@@ -114,7 +131,7 @@ class window.Food
 		super FOOD, name
 		this
 
-	onDayStart: ->
+	onDayStart: -> #should spoil on a per step basis based on storage state
 		@age += 1
 		lastStatus = @status
 		if @age >= @maxAge * .7
@@ -139,4 +156,5 @@ class window.Food
 		</div>
 	"""
 	render: -> @template this
+
 

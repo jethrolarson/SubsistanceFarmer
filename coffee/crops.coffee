@@ -1,5 +1,4 @@
-window.models ||= {}
-window.views ||= {}
+
 class models.Plot extends Backbone.Model
 
 class models.Crop extends Backbone.Model
@@ -27,10 +26,11 @@ class models.Crop extends Backbone.Model
 	initialize: ->
 		@happiness = @MAX_HAPPINESS
 		@mods = new Backbone.Collection
-		$d.on onDayStart: @onDayStart
+		@listenTo time, 'dawn', @onDayStart
 
 	onDayStart:->
-		@set {happiness: @get('happiness') + (if @get('watered') && Math.abs(@get('weather') - newGame.weather) < 2 then +1 else -1)}, {silent: true}
+		debugger
+		@set {happiness: @get('happiness') + (if @get('watered') && Math.abs(@get('weather') - game.weather) < 2 then +1 else -1)}, {silent: true}
 		
 		@set {happiness: @get('happiness').constrain 0, @MAX_HAPPINESS}, silent: true
 
@@ -49,7 +49,7 @@ class models.Crop extends Backbone.Model
 		if @get('age') >= @get 'yieldAt'
 			@set {'yield': @get('yield') + Math.round (@get('happiness') - 5) / 2}, silent: true
 		@set {watered: false}, silent: true
-		@change()
+		@trigger 'change'
 
 	water: ()->
 		if not @prop.watered
@@ -76,12 +76,13 @@ class views.Plot extends Backbone.View
 class views.Crop extends Backbone.View
 	tagName: 'div'
 	initialize:->
+		@$el = $ @el
 		_.bindAll @
 		@$el.attr(
 			id: @cid
 			'class': 'crop'
 		)
-		$d.on onDayStart: @render
+		@listenTo @model,'change', @render
 		@render()
 	events:
 		water: 'water'
@@ -91,7 +92,6 @@ class views.Crop extends Backbone.View
 		@
 	water: ->
 		@model.set watered: true
-		@render()
 	template: _.template """
 		<div><b><%@name%></b></div>
 		<%=game.meterTemplate({width:80, height: 5, value: this.get('age') / this.get("maxAge")})%>

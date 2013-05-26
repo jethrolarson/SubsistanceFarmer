@@ -12,20 +12,15 @@ window.ITEMS =
 		label: 'Bed'
 		use: ->
 			game.message "You rest"
-			newGame.beforeDay()
-		events:
-			beforeTurn: ->#non-standard use of @uses
-				@set uses: player.get 'calories'
-				@set maxUses: player.get 'maxCalories'
-				true
-			rendered: ->
+			time.sleep()
+		initialize:->
+			@listenTo time,'change:hours', ->
 				if player.get('calories') < 3
 					@set targetable: true
 				true
 		color: 'green'
 	well:
 		label: "Well"
-		use: -> null
 
 window.FOODS =
 	#vegetables
@@ -81,18 +76,16 @@ window.TOOLS =
 				else if player.burnCalories 1
 					$(e.target).trigger 'water'
 					@set uses: @get('uses') - 1
-					newGame.endTurn()
+					player.work()
 					return true
 				return false
 					
 			'.well':->
 				if @get('uses') < @get('maxUses') and player.burnCalories(1)
 					@set uses: @get 'maxUses'
-					newGame.endTurn()
-		events: 
-			activate: -> @get('highlightTargetable')()
-			rendered: -> @get('highlightTargetable')()
-		highlightTargetable: ->
+					player.work()
+		initialize:->
+			@listenTo time,'change:hours', -> 
 			if @active
 				$('.well').toggleClass 'targetable', @uses is 0
 				$('.crop.unwatered').toggleClass 'targetable', @uses
@@ -106,7 +99,7 @@ window.TOOLS =
 			'.expand': (e)->
 				if player.burnCalories(3)
 					$(e.target).trigger 'expand'
-					newGame.endTurn()
+					player.work()
 	zucciniSeeds:
 		label: 'Zuccini Seeds'
 		uses: 0
@@ -116,4 +109,4 @@ window.TOOLS =
 				if player.burnCalories(2)
 					@set maxUses: 0
 					$(e.target).trigger('plant','zuccini')
-					newGame.endTurn()
+					player.work()
