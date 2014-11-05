@@ -1,3 +1,5 @@
+node_modules
+public
 # Numerous always-ignore extensions
 *.diff
 *.err

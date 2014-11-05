@@ -1,6 +1,12 @@
-coffeescript watch: `coffee -o js/ -w -c coffee/`  
-compass watch
 
-TODO
-----
-Add toolbar with tools: Watering Can, Shovel, 
+
+    npm install
+    gulp
+
+Thoughts
+=========
+
+Subsistence farming is not really necessary when you're just trying to survive alone.
+
+Look again at the early parts of A Dark Room.
+
